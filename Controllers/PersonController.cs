@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -21,11 +22,12 @@ namespace JsonConvertExample.Controllers
         }
 
         [HttpGet]
-        public IActionResult Get(bool ignoreNull = false)
+        public IActionResult Get(bool ignoreNull = false, bool excludeLastName = false)
         {
             var settings = new JsonSerializerSettings{
                 //DefaultValueHandling can be used to not serialize null properties
-               DefaultValueHandling = ignoreNull ? DefaultValueHandling.Ignore : DefaultValueHandling.Include
+               DefaultValueHandling = ignoreNull ? DefaultValueHandling.Ignore : DefaultValueHandling.Include,
+               ContractResolver = excludeLastName ? ShouldSerializeContractResolver.Instance : null
            };
            
            //Person has 2 addresses. WorkAddress is null, so will be excluded when ignoreNull == true
@@ -42,4 +44,25 @@ namespace JsonConvertExample.Controllers
             }, settings);
         }
     }
+    public class ShouldSerializeContractResolver : DefaultContractResolver
+    {
+        public new static readonly ShouldSerializeContractResolver Instance = new ShouldSerializeContractResolver();
+
+        protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
+        {
+            JsonProperty property = base.CreateProperty(member, memberSerialization);
+
+            if (property.DeclaringType == typeof(Person) && property.PropertyName == nameof(Person.LastName))
+            {
+                property.ShouldSerialize =
+                    instance =>
+                    {
+                        return false;
+                    };
+            }
+
+            return property;
+        }
+    }
+    
 }
